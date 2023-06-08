@@ -13,6 +13,7 @@ namespace testProgect
             Console.WriteLine();
             Console.WriteLine();
             Console.ReadLine();
+            Console.WriteLine();
         }
     }
 }
