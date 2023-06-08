@@ -1,19 +1,399 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace testProgect
+namespace XXX
 {
     internal class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.ReadLine();
-            Console.WriteLine();
+            CarService carService = new CarService(10, 200000, 25000, 5000);
+            carService.Work();
+        }
+    }
+
+    abstract class UserUtils
+    {
+        private static Random _random = new Random();
+
+        public static int GenerateRandomNumber(int min, int max)
+        {
+            return _random.Next(min, max);
+        }
+
+        public static int GenerateRandomNumber(int max)
+        {
+            return _random.Next(max);
+        }
+    }
+
+    class CarService
+    {
+        private List<Part> _parts = new List<Part>();
+        private Queue<Car> _cars = new Queue<Car>();
+        private DatabaseParts _dataBaseParts = new DatabaseParts();
+        private int _priceForfeit;
+
+        public CarService(int storageContent, int startMoneyBalance, int priceForfeit, int pricePartReplacement)
+        {
+            FreeSpaceInStorage = storageContent;
+            Money = startMoneyBalance;
+            TakeQueueCar();
+            _priceForfeit = priceForfeit;
+            IsBankrupt = false;
+            PricePartReplacement = pricePartReplacement;
+        }
+
+        public int Money { get; private set; }
+        public int FreeSpaceInStorage { get; private set; }
+        public bool IsBankrupt { get; private set; }
+        public int PricePartReplacement { get; private set; }
+
+        public void Work()
+        {
+            while (_cars.Count > 0 && IsBankrupt == false)
+            {
+                ShowMenu();
+                Console.Write($"В ваш сервис обратился клиент!\nНажмите чтобы произвести диагностику его авто!");
+                Console.ReadKey();
+                Part brokenPart = _cars.Peek().GetBrokenPart();
+
+                Console.WriteLine($"Диагностика показала наличие следующей неисправности: {brokenPart.Name}");
+                Console.WriteLine("Запчасти на вашем складе:");
+                ShowPartsInfo(_parts);
+
+                if (StorageContainsNeededPart(brokenPart))
+                {
+                    Console.Write("Введите индекс запчасти со склада которую желаете установить клиенту: ");
+
+                    if (int.TryParse(Console.ReadLine(), out int index) && index < _parts.Count && index > 0)
+                    {
+                        Part part = GetPartFromSrorage(index);
+
+                        Console.WriteLine($"Запчасть {part.Name} выбрана! За установку вы получите: {PricePartReplacement}!");
+                        Console.WriteLine("Нажмите чтобы установить!");
+                        Console.ReadKey();
+
+                        RepairCar(part, PricePartReplacement);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Некорректный индекс!");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"На вашем складе нет нужной запчасти! Вам возложен штраф {_priceForfeit}!");
+                    TakeForfeit();
+                }
+            }
+
+            if (_cars.Count > 0 && IsBankrupt == false)
+            {
+                Console.WriteLine($"Вы успешно закончили рабочий день! Все машины обслужены!\nВаш баланс: {Money}");
+            }
+        }
+
+        private void RepairCar(Part part, int repairPrice)
+        {
+            if (_cars.Peek().ReplacePart(part))
+            {
+                Console.WriteLine("Вы успешно отремонтировали авто!");
+                TakeMoney(part.Price + repairPrice);
+                Console.Write($"Вы получаете: {part.Price + repairPrice}");
+                Console.WriteLine($"Ваш баланс: {Money}");
+                Console.ReadKey();
+                Console.Clear();
+                _cars.Dequeue();
+            }
+            else
+            {
+                Console.WriteLine($"Вы поменяли клиенту не ту запчасть! Вам возложен штраф в размере цены за ремонт: {_priceForfeit}");
+                TakeForfeit();
+            }
+        }
+
+        private Part GetPartFromSrorage(int indexPart)
+        {
+            if (indexPart < _parts.Count && indexPart > 0)
+            {
+                foreach (Part part in _parts)
+                {
+                    if (part.Index == indexPart)
+                    {
+                        _parts.Remove(part);
+                        FreeSpaceInStorage++;
+
+                        return part;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private bool StorageContainsNeededPart(Part neededPart)
+        {
+            foreach (Part part in _parts)
+            {
+                if (part.Name == neededPart.Name)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void BuyPart()
+        {
+            List<Part> allparts = _dataBaseParts.GetParts();
+
+            Console.WriteLine($"Пополнение склада запчастей! Свободного места на вашем складе: {FreeSpaceInStorage} ячеек!\n");
+            Console.WriteLine("Ассортимент:");
+
+            foreach (Part part in allparts)
+            {
+                Console.WriteLine($"{part.Name} стоимостью: {part.Price} индекс: {part.Index}");
+            }
+
+            Console.Write("\nВведите индекс запчасти, которую желаете купить: ");
+
+            if (int.TryParse(Console.ReadLine(), out int index))
+            {
+                if (FreeSpaceInStorage > 0)
+                {
+                    foreach (Part part in allparts)
+                    {
+                        if (part.Index == index)
+                        {
+                            if (Pay(part.Price))
+                            {
+                                _parts.Add(part);
+                                FreeSpaceInStorage--;
+                                Console.WriteLine("Запчасть успешно приобретена!");
+                                Console.WriteLine($"Осталось места в хранилище: {FreeSpaceInStorage}");
+                            }
+                            else
+                            {
+                                Console.WriteLine("Вам недостаточно денег!");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("На вашем складе нет свободного места!");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Не корректное число!");
+            }
+        }
+
+        private void ShowMenu()
+        {
+            const string MenuBuyPart = "1";
+            const string MenuShowPartsInStorage = "2";
+            const string MenuExit = "3";
+
+            bool inProcessShoping = true;
+
+            while (inProcessShoping)
+            {
+                Console.WriteLine($"Магазин запчастей! Ваш баланс: {Money}\n");
+                Console.WriteLine($"Введите {MenuBuyPart} чтобы совершить покупку!\nВведите {MenuShowPartsInStorage} чтобы показать запчасти в хранилище!\nВведите {MenuExit} чтобы выйти из меню и приступить к работе!");
+                string userInput = Console.ReadLine();
+                Console.Clear();
+
+                switch (userInput)
+                {
+                    case MenuBuyPart:
+                        BuyPart();
+                        break;
+
+                    case MenuExit:
+                        inProcessShoping = false;
+                        break;
+
+                    case MenuShowPartsInStorage:
+                        ShowPartsInfo(_parts);
+                        break;
+
+                    default:
+                        Console.WriteLine("Такой команды нет в списке!");
+                        break;
+                }
+
+                Console.ReadKey();
+                Console.Clear();
+            }
+
+            Console.Clear();
+        }
+
+        private void ShowPartsInfo(List<Part> parts)
+        {
+            if (parts.Count > 0)
+            {
+                foreach (Part part in parts)
+                {
+                    Console.WriteLine($"{part.Name} стоимостью: {part.Price} индекс: {part.Index}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Склад пуст!");
+            }
+        }
+
+        private bool Pay(int price)
+        {
+            if (Money >= price)
+            {
+                Money -= price;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void TakeForfeit()
+        {
+            if (Pay(_priceForfeit))
+            {
+                Console.WriteLine("Штраф оплачен!");
+                Console.WriteLine("Клиент обиделся и ушел!");
+                Console.WriteLine($"Ваш баланс: {Money}");
+                Console.ReadKey();
+                Console.Clear();
+                _cars.Dequeue();
+            }
+            else
+            {
+                Console.WriteLine("Вам не хватает денег для оплаты штрафа! Вы банкрот! Игра окончена!");
+                Console.ReadKey();
+                IsBankrupt = true;
+            }
+        }
+
+        private void TakeMoney(int price)
+        {
+            if (price >= 0)
+                Money += price;
+            else
+                Money += 0;
+        }
+
+        private void TakeQueueCar()
+        {
+            int minRandomNumber = 6;
+            int maxRandomNumber = 25;
+            int lengthQueue = UserUtils.GenerateRandomNumber(minRandomNumber, maxRandomNumber);
+
+            for (int i = 0; i < lengthQueue; i++)
+            {
+                _cars.Enqueue(new Car());
+            }
+        }
+    }
+
+    class Part
+    {
+        private static int _indices;
+
+        public Part(string name, int price)
+        {
+            Name = name;
+            Price = price;
+            Serviceable = true;
+            Index = ++_indices;
+        }
+
+        public string Name { get; private set; }
+        public int Price { get; private set; }
+        public bool Serviceable { get; private set; }
+        public int Index { get; private set; }
+
+        public void GetBroken()
+        {
+            Serviceable = false;
+        }
+    }
+
+    class DatabaseParts
+    {
+        private List<Part> _parts;
+
+        public DatabaseParts()
+        {
+            CreateParts();
+        }
+
+        public List<Part> GetParts()
+        {
+            List<Part> parts = new List<Part>();
+
+            foreach (Part part in _parts)
+            {
+                parts.Add(part);
+            }
+
+            return parts;
+        }
+
+        private void CreateParts()
+        {
+            _parts = new List<Part>()
+            {
+                new Part("ремень ГРМ", 799),
+                new Part("ступичный подшипник", 2299),
+                new Part("прокладка ГБЦ", 380),
+                new Part("головка ГБЦ", 14999),
+                new Part("бензонасос", 4999),
+                new Part("рулевые тяги", 6700)
+            };
+        }
+    }
+
+    class Car
+    {
+        private List<Part> _parts;
+        private DatabaseParts _dataBaseParts = new DatabaseParts();
+
+        public Car()
+        {
+            _parts = _dataBaseParts.GetParts();
+            BrokenRandomPart();
+        }
+
+        public Part GetBrokenPart()
+        {
+            foreach (Part part in _parts)
+            {
+                if (part.Serviceable == false)
+                    return part;
+            }
+
+            return null;
+        }
+
+        public bool ReplacePart(Part newPart)
+        {
+            Part brokenPart = GetBrokenPart();
+
+            if (brokenPart.Name == newPart.Name)
+            {
+                _parts.Remove(brokenPart);
+                _parts.Add(newPart);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void BrokenRandomPart()
+        {
+            _parts[UserUtils.GenerateRandomNumber(_parts.Count)].GetBroken();
         }
     }
 }
