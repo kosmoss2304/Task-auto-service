@@ -31,14 +31,14 @@ namespace XXX
     {
         private List<Part> _parts = new List<Part>();
         private Queue<Car> _cars = new Queue<Car>();
-        private DatabaseParts _dataBaseParts = new DatabaseParts();
+        private Database _databaseParts = new Database();
         private int _priceForfeit;
 
-        public CarService(int storageContent, int startMoneyBalance, int priceForfeit, int pricePartReplacement)
+        public CarService(int freeSpaceInStorage, int startMoneyBalance, int priceForfeit, int pricePartReplacement)
         {
-            FreeSpaceInStorage = storageContent;
+            FreeSpaceInStorage = freeSpaceInStorage;
             Money = startMoneyBalance;
-            TakeQueueCar();
+            GenerateQueueCar();
             _priceForfeit = priceForfeit;
             IsBankrupt = false;
             PricePartReplacement = pricePartReplacement;
@@ -62,11 +62,11 @@ namespace XXX
                 Console.WriteLine("Запчасти на вашем складе:");
                 ShowPartsInfo(_parts);
 
-                if (StorageContainsNeededPart(brokenPart))
+                if (IsStorageContains(brokenPart))
                 {
                     Console.Write("Введите индекс запчасти со склада которую желаете установить клиенту: ");
 
-                    if (int.TryParse(Console.ReadLine(), out int index) && index < _parts.Count && index > 0)
+                    if (int.TryParse(Console.ReadLine(), out int index) && index <= _parts.Count && index > 0)
                     {
                         Part part = GetPartFromSrorage(index);
 
@@ -74,17 +74,18 @@ namespace XXX
                         Console.WriteLine("Нажмите чтобы установить!");
                         Console.ReadKey();
 
-                        RepairCar(part, PricePartReplacement);
+                        MakeCalculation(RepairCar(part), brokenPart.Price, PricePartReplacement);
                     }
                     else
-                    {
-                        Console.WriteLine("Некорректный индекс!");
+                    {               
+                        Console.WriteLine($"Вы не смогли разобраться на складе и найти запчасть! Вам возложен штраф {_priceForfeit}!");
+                        PayForfeit();
                     }
                 }
                 else
                 {
                     Console.WriteLine($"На вашем складе нет нужной запчасти! Вам возложен штраф {_priceForfeit}!");
-                    TakeForfeit();
+                    PayForfeit();
                 }
             }
 
@@ -94,13 +95,18 @@ namespace XXX
             }
         }
 
-        private void RepairCar(Part part, int repairPrice)
+        private bool RepairCar(Part part)
         {
-            if (_cars.Peek().ReplacePart(part))
+            return _cars.Peek().ReplacePart(part);           
+        }
+
+        private void MakeCalculation(bool thisRepairCompletedSuccessfully, int partPrice, int repairPrice)
+        {
+            if (thisRepairCompletedSuccessfully)
             {
                 Console.WriteLine("Вы успешно отремонтировали авто!");
-                TakeMoney(part.Price + repairPrice);
-                Console.Write($"Вы получаете: {part.Price + repairPrice}");
+                TakeMoney(partPrice + repairPrice);
+                Console.Write($"Вы получаете: {partPrice + repairPrice}");
                 Console.WriteLine($"Ваш баланс: {Money}");
                 Console.ReadKey();
                 Console.Clear();
@@ -109,13 +115,13 @@ namespace XXX
             else
             {
                 Console.WriteLine($"Вы поменяли клиенту не ту запчасть! Вам возложен штраф в размере цены за ремонт: {_priceForfeit}");
-                TakeForfeit();
+                PayForfeit();
             }
         }
 
         private Part GetPartFromSrorage(int indexPart)
         {
-            if (indexPart < _parts.Count && indexPart > 0)
+            if (indexPart <= _parts.Count && indexPart > 0)
             {
                 foreach (Part part in _parts)
                 {
@@ -132,7 +138,7 @@ namespace XXX
             return null;
         }
 
-        private bool StorageContainsNeededPart(Part neededPart)
+        private bool IsStorageContains(Part neededPart)
         {
             foreach (Part part in _parts)
             {
@@ -145,15 +151,11 @@ namespace XXX
 
         private void BuyPart()
         {
-            List<Part> allparts = _dataBaseParts.GetParts();
+            List<Part> allparts = _databaseParts.GetParts();
 
             Console.WriteLine($"Пополнение склада запчастей! Свободного места на вашем складе: {FreeSpaceInStorage} ячеек!\n");
             Console.WriteLine("Ассортимент:");
-
-            foreach (Part part in allparts)
-            {
-                Console.WriteLine($"{part.Name} стоимостью: {part.Price} индекс: {part.Index}");
-            }
+            _databaseParts.ShowAllParts();
 
             Console.Write("\nВведите индекс запчасти, которую желаете купить: ");
 
@@ -257,7 +259,7 @@ namespace XXX
             return false;
         }
 
-        private void TakeForfeit()
+        private void PayForfeit()
         {
             if (Pay(_priceForfeit))
             {
@@ -284,7 +286,7 @@ namespace XXX
                 Money += 0;
         }
 
-        private void TakeQueueCar()
+        private void GenerateQueueCar()
         {
             int minRandomNumber = 6;
             int maxRandomNumber = 25;
@@ -305,26 +307,26 @@ namespace XXX
         {
             Name = name;
             Price = price;
-            Serviceable = true;
+            IsServiceable = true;
             Index = ++_indices;
         }
 
         public string Name { get; private set; }
         public int Price { get; private set; }
-        public bool Serviceable { get; private set; }
+        public bool IsServiceable { get; private set; }
         public int Index { get; private set; }
 
-        public void GetBroken()
+        public void Break()
         {
-            Serviceable = false;
+            IsServiceable = false;
         }
     }
 
-    class DatabaseParts
+    class Database
     {
         private List<Part> _parts;
 
-        public DatabaseParts()
+        public Database()
         {
             CreateParts();
         }
@@ -339,6 +341,14 @@ namespace XXX
             }
 
             return parts;
+        }
+
+        public void ShowAllParts()
+        {
+            foreach (Part part in _parts)
+            {
+                Console.WriteLine($"{part.Name} стоимостью: {part.Price} индекс: {part.Index}");
+            }
         }
 
         private void CreateParts()
@@ -358,19 +368,19 @@ namespace XXX
     class Car
     {
         private List<Part> _parts;
-        private DatabaseParts _dataBaseParts = new DatabaseParts();
+        private Database _dataBaseParts = new Database();
 
         public Car()
         {
             _parts = _dataBaseParts.GetParts();
-            BrokenRandomPart();
+            BrakeRandomPart();
         }
 
         public Part GetBrokenPart()
         {
             foreach (Part part in _parts)
             {
-                if (part.Serviceable == false)
+                if (part.IsServiceable == false)
                     return part;
             }
 
@@ -391,9 +401,9 @@ namespace XXX
             return false;
         }
 
-        private void BrokenRandomPart()
+        private void BrakeRandomPart()
         {
-            _parts[UserUtils.GenerateRandomNumber(_parts.Count)].GetBroken();
+            _parts[UserUtils.GenerateRandomNumber(_parts.Count)].Break();
         }
     }
 }
