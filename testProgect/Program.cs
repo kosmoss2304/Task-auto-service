@@ -97,7 +97,7 @@ namespace XXX
 
         private bool RepairCar(Part part)
         {
-            return _cars.Peek().ReplacePart(part);           
+            return _cars.Peek().ReplacementNeededPart(part);           
         }
 
         private void MakeCalculation(bool thisRepairCompletedSuccessfully, int partPrice, int repairPrice)
@@ -167,7 +167,7 @@ namespace XXX
                     {
                         if (part.Index == index)
                         {
-                            if (Pay(part.Price))
+                            if (PaymentMade(part.Price))
                             {
                                 _parts.Add(part);
                                 FreeSpaceInStorage--;
@@ -248,7 +248,7 @@ namespace XXX
             }
         }
 
-        private bool Pay(int price)
+        private bool PaymentMade(int price)
         {
             if (Money >= price)
             {
@@ -261,7 +261,7 @@ namespace XXX
 
         private void PayForfeit()
         {
-            if (Pay(_priceForfeit))
+            if (PaymentMade(_priceForfeit))
             {
                 Console.WriteLine("Штраф оплачен!");
                 Console.WriteLine("Клиент обиделся и ушел!");
@@ -281,9 +281,7 @@ namespace XXX
         private void TakeMoney(int price)
         {
             if (price >= 0)
-                Money += price;
-            else
-                Money += 0;
+                Money += price;           
         }
 
         private void GenerateQueueCar()
@@ -387,7 +385,7 @@ namespace XXX
             return null;
         }
 
-        public bool ReplacePart(Part newPart)
+        public bool ReplacementNeededPart(Part newPart)
         {
             Part brokenPart = GetBrokenPart();
 
