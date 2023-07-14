@@ -33,25 +33,24 @@ namespace XXX
         private Queue<Car> _cars = new Queue<Car>();
         private Database _databaseParts = new Database();
         private int _priceForfeit;
+        private int _money;
+        private int _freeSpaceInStorage;
+        private bool _isBankrupt;
+        private int _pricePartReplacement;
 
         public CarService(int freeSpaceInStorage, int startMoneyBalance, int priceForfeit, int pricePartReplacement)
         {
-            FreeSpaceInStorage = freeSpaceInStorage;
-            Money = startMoneyBalance;
+            _freeSpaceInStorage = freeSpaceInStorage;
+            _money = startMoneyBalance;
             GenerateQueueCar();
             _priceForfeit = priceForfeit;
-            IsBankrupt = false;
-            PricePartReplacement = pricePartReplacement;
+            _isBankrupt = false;
+            _pricePartReplacement = pricePartReplacement;
         }
-
-        public int Money { get; private set; }
-        public int FreeSpaceInStorage { get; private set; }
-        public bool IsBankrupt { get; private set; }
-        public int PricePartReplacement { get; private set; }
 
         public void Work()
         {
-            while (_cars.Count > 0 && IsBankrupt == false)
+            while (_cars.Count > 0 && _isBankrupt == false)
             {
                 ShowMenu();
                 Console.Write($"В ваш сервис обратился клиент!\nНажмите чтобы произвести диагностику его авто!");
@@ -70,11 +69,11 @@ namespace XXX
                     {
                         Part part = GetPartFromSrorage(index);
 
-                        Console.WriteLine($"Запчасть {part.Name} выбрана! За установку вы получите: {PricePartReplacement}!");
+                        Console.WriteLine($"Запчасть {part.Name} выбрана! За установку вы получите: {_pricePartReplacement}!");
                         Console.WriteLine("Нажмите чтобы установить!");
                         Console.ReadKey();
 
-                        MakeCalculation(RepairCar(part), brokenPart.Price, PricePartReplacement);
+                        MakeCalculation(RepairCar(part), brokenPart.Price, _pricePartReplacement);
                     }
                     else
                     {               
@@ -89,9 +88,9 @@ namespace XXX
                 }
             }
 
-            if (_cars.Count > 0 && IsBankrupt == false)
+            if (_cars.Count > 0 && _isBankrupt == false)
             {
-                Console.WriteLine($"Вы успешно закончили рабочий день! Все машины обслужены!\nВаш баланс: {Money}");
+                Console.WriteLine($"Вы успешно закончили рабочий день! Все машины обслужены!\nВаш баланс: {_money}");
             }
         }
 
@@ -107,7 +106,7 @@ namespace XXX
                 Console.WriteLine("Вы успешно отремонтировали авто!");
                 TakeMoney(partPrice + repairPrice);
                 Console.Write($"Вы получаете: {partPrice + repairPrice}");
-                Console.WriteLine($"Ваш баланс: {Money}");
+                Console.WriteLine($"Ваш баланс: {_money}");
                 Console.ReadKey();
                 Console.Clear();
                 _cars.Dequeue();
@@ -128,7 +127,7 @@ namespace XXX
                     if (part.Index == indexPart)
                     {
                         _parts.Remove(part);
-                        FreeSpaceInStorage++;
+                        _freeSpaceInStorage++;
 
                         return part;
                     }
@@ -153,7 +152,7 @@ namespace XXX
         {
             List<Part> allparts = _databaseParts.GetParts();
 
-            Console.WriteLine($"Пополнение склада запчастей! Свободного места на вашем складе: {FreeSpaceInStorage} ячеек!\n");
+            Console.WriteLine($"Пополнение склада запчастей! Свободного места на вашем складе: {_freeSpaceInStorage} ячеек!\n");
             Console.WriteLine("Ассортимент:");
             _databaseParts.ShowAllParts();
 
@@ -161,7 +160,7 @@ namespace XXX
 
             if (int.TryParse(Console.ReadLine(), out int index))
             {
-                if (FreeSpaceInStorage > 0)
+                if (_freeSpaceInStorage > 0)
                 {
                     foreach (Part part in allparts)
                     {
@@ -170,9 +169,9 @@ namespace XXX
                             if (PaymentMade(part.Price))
                             {
                                 _parts.Add(part);
-                                FreeSpaceInStorage--;
+                                _freeSpaceInStorage--;
                                 Console.WriteLine("Запчасть успешно приобретена!");
-                                Console.WriteLine($"Осталось места в хранилище: {FreeSpaceInStorage}");
+                                Console.WriteLine($"Осталось места в хранилище: {_freeSpaceInStorage}");
                             }
                             else
                             {
@@ -202,7 +201,7 @@ namespace XXX
 
             while (inProcessShoping)
             {
-                Console.WriteLine($"Магазин запчастей! Ваш баланс: {Money}\n");
+                Console.WriteLine($"Магазин запчастей! Ваш баланс: {_money}\n");
                 Console.WriteLine($"Введите {MenuBuyPart} чтобы совершить покупку!\nВведите {MenuShowPartsInStorage} чтобы показать запчасти в хранилище!\nВведите {MenuExit} чтобы выйти из меню и приступить к работе!");
                 string userInput = Console.ReadLine();
                 Console.Clear();
@@ -250,9 +249,9 @@ namespace XXX
 
         private bool PaymentMade(int price)
         {
-            if (Money >= price)
+            if (_money >= price)
             {
-                Money -= price;
+                _money -= price;
                 return true;
             }
 
@@ -265,7 +264,7 @@ namespace XXX
             {
                 Console.WriteLine("Штраф оплачен!");
                 Console.WriteLine("Клиент обиделся и ушел!");
-                Console.WriteLine($"Ваш баланс: {Money}");
+                Console.WriteLine($"Ваш баланс: {_money}");
                 Console.ReadKey();
                 Console.Clear();
                 _cars.Dequeue();
@@ -274,14 +273,14 @@ namespace XXX
             {
                 Console.WriteLine("Вам не хватает денег для оплаты штрафа! Вы банкрот! Игра окончена!");
                 Console.ReadKey();
-                IsBankrupt = true;
+                _isBankrupt = true;
             }
         }
 
         private void TakeMoney(int price)
         {
             if (price >= 0)
-                Money += price;           
+                _money += price;           
         }
 
         private void GenerateQueueCar()
